@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Chat Socket.IO UNA</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; }
+      form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
+      form input { border: 0; padding: 10px;}
+      form button { width: 10%; background: rgb(130, 224, 255); border: none; padding: 10px; }
+      #messages { list-style-type: none; margin: 0; padding: 0; }
+      #messages li { padding: 5px 10px; }
+      #messages li:nth-child(odd) { background: #eee; }
+      #messages { margin-bottom: 40px }
+      #nombre, #m { display: inline-block;}
+      #m {width: 69%; margin-right: 4px;}
+      #nombre {width: 20%}
+    </style>
+  </head>
+  <body>
+    <ul id="messages"></ul>
+    <form action="">
+      <input id="nombre" autocomplete="off" placeholder="Username"/>
+      <input id="m" autocomplete="off" placeholder="Escriba un mensaje" /><button>Send</button>
+    </form>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+    <script>
+      var colorHexTxt = "";
+
+      function getRandomColor() {
+        var letters = '0123456789ABCDEF';
+        var color = '#';
+        for (var i = 0; i < 6; i++) {
+          color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+      }
+
+      $(function () {
+        var socket = io();
+
+        // Enviar mensaje al servidor
+        $('form').submit(function(){
+          var nombreTxt = $('#nombre').val() || "Anónimo";
+          var mensajeTxt = $('#m').val();
+
+          if (colorHexTxt == "") {
+              colorHexTxt = getRandomColor();
+          }
+
+          var jsonMsg = { nombre: nombreTxt, mensaje: mensajeTxt, color: colorHexTxt };
+          socket.emit('Evento-Mensaje-Server', JSON.stringify(jsonMsg));
+          $('#m').val('');
+          return false;
+        });
+
+        // Recibir mensaje desde el servidor
+        socket.on('Evento-Mensaje-Server', function(msg){
+          var msgJson = JSON.parse(msg);
+          var li = document.createElement('li');
+
+          // Nombre con color
+          var nameSpan = document.createElement('b');
+          nameSpan.style.color = msgJson.color;
+          nameSpan.textContent = msgJson.nombre + ": ";
+          li.appendChild(nameSpan);
+
+          // Detectar tipo de mensaje
+          if (typeof msgJson.mensaje === 'object' && msgJson.mensaje.type) {
+            if (msgJson.mensaje.type === 'image') {
+              const img = document.createElement('img');
+              img.src = msgJson.mensaje.url;
+              img.style.maxWidth = '200px';
+              li.appendChild(img);
+            } else if (msgJson.mensaje.type === 'video') {
+              const video = document.createElement('video');
+              video.src = msgJson.mensaje.url;
+              video.controls = true;
+              video.width = 320;
+              li.appendChild(video);
+            } else if (msgJson.mensaje.type === 'youtube') {
+              const iframe = document.createElement('iframe');
+              iframe.src = msgJson.mensaje.url.replace('watch?v=', 'embed/');
+              iframe.width = 320;
+              iframe.height = 180;
+              iframe.allowFullscreen = true;
+              li.appendChild(iframe);
+            } else {
+              li.textContent += msgJson.mensaje.content || msgJson.mensaje;
+            }
+          } else {
+            // Texto normal (seguro)
+            li.textContent += msgJson.mensaje.content || msgJson.mensaje;
+          }
+
+          document.getElementById('messages').appendChild(li);
+          window.scrollTo(0, document.body.scrollHeight);
+        });
+      });
+    </script>
+  </body>
+</html>
